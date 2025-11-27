@@ -1,0 +1,52 @@
+name: Build ffmpeg.wasm from Dockerfile
+
+on:
+  push:
+    branches:
+      - main
+  # 允许手动触发
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      # 1. 检出代码
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. 登陆 Docker Hub 或 GitHub Packages (如果需要推送到注册表)
+      # 如果只是本地构建和导出，可以跳过此步骤。
+
+      # 3. 设置 QEMU
+      # 这是一个最佳实践，确保构建在不同架构上都能运行，即使此处的 emsdk 主要是 x86-64。
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      # 4. 设置 Docker Buildx (启用 BuildKit)
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # 5. 构建镜像并导出文件
+      - name: Build and Export ffmpeg-core.wasm
+        uses: docker/build-push-action@v5
+        id: build-wasm
+        with:
+          # Dockerfile 路径
+          context: .
+          file: ./Dockerfile
+          # 指定目标 Stage 为 exportor
+          target: exportor
+          # 启用 Buildx 的输出功能，将 /dist 目录的内容导出到 GitHub Runner 的工作目录中
+          outputs: "type=local,dest=./build-output"
+          # 注意：这里没有使用 push=true，因为我们只是想导出文件，而不是推送到注册表。
+
+      # 6. 上传构建产物 (Artifact)
+      # 将导出的文件（build-output/dist 目录下的所有内容）上传到 GitHub
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-wasm-core
+          # 指定要上传的目录
+          path: ./build-output/dist
+          retention-days: 7
