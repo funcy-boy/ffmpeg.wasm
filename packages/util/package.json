@@ -1,7 +1,7 @@
 {
-  "name": "@ffmpeg/util",
+  "name": "@ezwebtools/ffmpeg-util",
   "version": "0.12.2",
-  "description": "browser utils for @ffmpeg/*",
+  "description": "browser utils for @ezwebtools/*",
   "main": "./dist/cjs/index.js",
   "type": "module",
   "types": "./dist/cjs/index.d.ts",
@@ -26,7 +26,7 @@
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ffmpegwasm/ffmpeg.wasm.git"
+    "url": "git+https://github.com/funcy-boy/ffmpeg.wasm.git"
   },
   "keywords": [
     "ffmpeg",
@@ -34,15 +34,15 @@
     "audio",
     "transcode"
   ],
-  "author": "Jerome Wu <jeromewus@gmail.com>",
+  "author": "funcy-boy",
   "license": "MIT",
   "bugs": {
-    "url": "https://github.com/ffmpegwasm/ffmpeg.wasm/issues"
+    "url": "https://github.com/funcy-boy/ffmpeg.wasm/issues"
   },
   "engines": {
     "node": ">=18.x"
   },
-  "homepage": "https://github.com/ffmpegwasm/ffmpeg.wasm#readme",
+  "homepage": "https://github.com/funcy-boy/ffmpeg.wasm#readme",
   "publishConfig": {
     "access": "public"
   },

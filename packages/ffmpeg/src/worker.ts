@@ -2,7 +2,7 @@
 /// <reference lib="esnext" />
 /// <reference lib="webworker" />
 
-import type { FFmpegCoreModule, FFmpegCoreModuleFactory } from "@ffmpeg/types";
+import type { FFmpegCoreModule, FFmpegCoreModuleFactory } from "@ezwebtools/ffmpeg-types";
 import type {
   FFMessageEvent,
   FFMessageLoadConfig,
