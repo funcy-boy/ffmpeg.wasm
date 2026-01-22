@@ -1,80 +1,100 @@
 # syntax=docker/dockerfile-upstream:master-labs
 
-# Base emsdk image
+############################################
+# Base emsdk
+############################################
 FROM emscripten/emsdk:3.1.40 AS emsdk-base
-ARG EXTRA_CFLAGS
-ARG EXTRA_LDFLAGS
+
 ENV INSTALL_DIR=/opt
-
 ENV FFMPEG_VERSION=n5.1.4
-ENV CFLAGS="-I$INSTALL_DIR/include $CFLAGS $EXTRA_CFLAGS"
-ENV CXXFLAGS="$CFLAGS"
-ENV LDFLAGS="-L$INSTALL_DIR/lib $LDFLAGS $CFLAGS $EXTRA_LDFLAGS"
-ENV EM_PKG_CONFIG_PATH=$EM_PKG_CONFIG_PATH:$INSTALL_DIR/lib/pkgconfig:/emsdk/upstream/emscripten/system/lib/pkgconfig
-ENV EM_TOOLCHAIN_FILE=$EMSDK/upstream/emscripten/cmake/Modules/Platform/Emscripten.cmake
-ENV PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$EM_PKG_CONFIG_PATH
+
 RUN apt-get update && \
-      apt-get install -y pkg-config autoconf automake libtool ragel
+    apt-get install -y \
+      pkg-config \
+      autoconf \
+      automake \
+      libtool \
+      ragel \
+      && rm -rf /var/lib/apt/lists/*
 
-# Build zlib 
+ENV CFLAGS="-I$INSTALL_DIR/include -O3"
+ENV CXXFLAGS="$CFLAGS"
+ENV LDFLAGS="-L$INSTALL_DIR/lib"
+ENV EM_PKG_CONFIG_PATH=$INSTALL_DIR/lib/pkgconfig
+ENV PKG_CONFIG_PATH=$EM_PKG_CONFIG_PATH
+
+############################################
+# Build zlib (AES + MP4 必需)
+############################################
 FROM emsdk-base AS zlib-builder
-ENV ZLIB_BRANCH=v1.2.11
-ADD https://github.com/ffmpegwasm/zlib.git#$ZLIB_BRANCH /src
+
+ADD https://github.com/ffmpegwasm/zlib.git#v1.2.11 /src
 COPY build/zlib.sh /src/build.sh
-RUN bash -x /src/build.sh
 
-# Build x264 
-FROM emsdk-base AS x264-builder
-ENV X264_BRANCH=4-cores
-ADD https://github.com/ffmpegwasm/x264.git#$X264_BRANCH /src
-COPY build/x264.sh /src/build.sh
-RUN bash -x /src/build.sh
+RUN bash /src/build.sh
 
-# Base ffmpeg image
-FROM emsdk-base AS ffmpeg-base
-RUN embuilder build sdl2 sdl2-mt
-ADD https://github.com/FFmpeg/FFmpeg.git#$FFMPEG_VERSION /src
+############################################
+# Build FFmpeg (TS + AES + concat only)
+############################################
+FROM emsdk-base AS ffmpeg-builder
+
+ADD https://github.com/FFmpeg/FFmpeg.git#${FFMPEG_VERSION} /src
 COPY --from=zlib-builder $INSTALL_DIR $INSTALL_DIR
-COPY --from=x264-builder $INSTALL_DIR $INSTALL_DIR
-
-# Build ffmpeg 
-FROM ffmpeg-base AS ffmpeg-builder
 COPY build/ffmpeg.sh /src/build.sh
 
 RUN bash -x /src/build.sh \
-      --disable-everything \
-      --disable-doc \
-      --disable-debug \
-      --disable-network \
-      --disable-autodetect \
-      --disable-filters \
-      --enable-gpl \
-      --enable-libx264 \
-      --enable-zlib \
-      --enable-protocol=file,http,https,crypto \
-       --enable-decoder=h264,aac \
-      --enable-demuxer=concat,mpegts,hls,mov \
-      --enable-muxer=mp4 \
-      --enable-parser=h264,aac,mpegts \
-      --enable-bsf=aac_adtstoasc,h264_mp4toannexb
+  --disable-everything \
+  --disable-doc \
+  --disable-debug \
+  --disable-network \
+  --disable-autodetect \
+  --disable-filters \
+  --disable-programs \
+  \
+  --enable-zlib \
+  \
+  --enable-protocol=file,crypto \
+  \
+  --enable-demuxer=concat,mpegts \
+  \
+  --enable-parser=h264,aac \
+  \
+  --enable-bsf=aac_adtstoasc \
+  \
+  --enable-muxer=mp4
 
+############################################
 # Build ffmpeg.wasm
+############################################
 FROM ffmpeg-builder AS ffmpeg-wasm-builder
+
 COPY src/bind /src/src/bind
 COPY src/fftools /src/src/fftools
-COPY build/ffmpeg-wasm.sh build.sh
+COPY build/ffmpeg-wasm.sh /src/build.sh
 
-ENV FFMPEG_LIBS \
-      -lz
+ENV FFMPEG_LIBS="-lz"
 
-RUN mkdir -p /src/dist/umd && bash -x /src/build.sh \
+# UMD
+RUN mkdir -p /src/dist/umd && \
+    bash /src/build.sh \
       ${FFMPEG_LIBS} \
+      -sINITIAL_MEMORY=268435456 \
+      -sALLOW_MEMORY_GROWTH=1 \
+      -sMAXIMUM_MEMORY=536870912 \
       -o dist/umd/ffmpeg-core.js
-RUN mkdir -p /src/dist/esm && bash -x /src/build.sh \
+
+# ESM
+RUN mkdir -p /src/dist/esm && \
+    bash /src/build.sh \
       ${FFMPEG_LIBS} \
       -sEXPORT_ES6 \
+      -sINITIAL_MEMORY=268435456 \
+      -sALLOW_MEMORY_GROWTH=1 \
+      -sMAXIMUM_MEMORY=536870912 \
       -o dist/esm/ffmpeg-core.js
 
+############################################
 # Export
-FROM scratch AS exportor
+############################################
+FROM scratch AS export
 COPY --from=ffmpeg-wasm-builder /src/dist /dist
