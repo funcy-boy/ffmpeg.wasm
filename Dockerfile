@@ -47,19 +47,17 @@ RUN bash -x /src/build.sh \
       --disable-debug \
       --disable-network \
       --disable-autodetect \
+      --disable-filters \
       --enable-gpl \
       --enable-libx264 \
       --enable-zlib \
-      --enable-protocol=file \
-      --enable-swresample \
-      --enable-swscale \
-      --enable-decoder=h264,hevc,aac,mp3,pcm_s16le \
-      --enable-encoder=aac,libx264,pcm_s16le \
-      --enable-demuxer=aac,mov,mp4,m4v,mpegts,h264,hevc,mp3,wav \
-      --enable-muxer=mp4,mov,wav,null \
-      --enable-parser=aac,h264,hevc,mpegaudio \
-      --enable-bsf=aac_adtstoasc,h264_mp4toannexb,hevc_mp4toannexb,extract_extradata \
-      --enable-filter=concat,aresample,scale,crop,overlay,amix
+      --enable-protocol=file,http,https,crypto \
+       --enable-decoder=h264,aac \
+      --enable-demuxer=concat,mpegts,hls,mov \
+      --enable-muxer=mp4 \
+      --enable-parser=h264,aac,mpegts \
+      --enable-bsf=aac_adtstoasc,h264_mp4toannexb \
+      
 
 # Build ffmpeg.wasm
 FROM ffmpeg-builder AS ffmpeg-wasm-builder
@@ -68,7 +66,6 @@ COPY src/fftools /src/src/fftools
 COPY build/ffmpeg-wasm.sh build.sh
 
 ENV FFMPEG_LIBS \
-      -lx264 \
       -lz
 
 RUN mkdir -p /src/dist/umd && bash -x /src/build.sh \

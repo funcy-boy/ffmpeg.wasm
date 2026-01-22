@@ -16,13 +16,13 @@
       "import": "./dist/esm/ffmpeg-core.worker.js",
       "require": "./dist/umd/ffmpeg-core.worker.js"
     }
-  },
+  },  
   "files": [
     "dist"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/funcy-boy/ffmpeg.wasm.git"
+    "url": "git+https://github.com/ffmpegwasm/ffmpeg.wasm.git"
   },
   "keywords": [
     "ffmpeg",
@@ -34,12 +34,12 @@
   "author": "funcy-boy",
   "license": "GPL-2.0-or-later",
   "bugs": {
-    "url": "https://github.com/funcy-boy/ffmpeg.wasm/issues"
+    "url": "https://github.com/ffmpegwasm/ffmpeg.wasm/issues"
   },
   "engines": {
     "node": ">=16.x"
   },
-  "homepage": "https://github.com/funcy-boy/ffmpeg.wasm#readme",
+  "homepage": "https://github.com/ffmpegwasm/ffmpeg.wasm#readme",
   "publishConfig": {
     "access": "public"
   }
