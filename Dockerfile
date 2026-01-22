@@ -56,8 +56,7 @@ RUN bash -x /src/build.sh \
       --enable-demuxer=concat,mpegts,hls,mov \
       --enable-muxer=mp4 \
       --enable-parser=h264,aac,mpegts \
-      --enable-bsf=aac_adtstoasc,h264_mp4toannexb \
-      
+      --enable-bsf=aac_adtstoasc,h264_mp4toannexb
 
 # Build ffmpeg.wasm
 FROM ffmpeg-builder AS ffmpeg-wasm-builder
