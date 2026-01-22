@@ -1,90 +1,66 @@
-# syntax=docker/dockerfile:1
+# syntax=docker/dockerfile-upstream:master-labs
 
 ############################################
 # Base emsdk
 ############################################
-FROM emscripten/emsdk:3.1.40 AS base
+FROM emscripten/emsdk:3.1.40 AS emsdk-base
 ENV INSTALL_DIR=/opt
 ENV FFMPEG_VERSION=n5.1.4
 
 RUN apt-get update && \
-    apt-get install -y \
-      autoconf automake libtool pkg-config ragel cmake && \
-    rm -rf /var/lib/apt/lists/*
+    apt-get install -y pkg-config autoconf automake libtool ragel
 
 ############################################
-# Build zlib (WASM)
+# Build zlib (required)
 ############################################
-FROM base AS zlib-builder
-WORKDIR /src
-
-ADD https://zlib.net/zlib-1.3.1.tar.gz .
-RUN tar xf zlib-1.3.1.tar.gz && \
-    cd zlib-1.3.1 && \
-    emconfigure ./configure \
-      --static \
-      --prefix=/opt && \
-    emmake make -j$(nproc) && \
-    emmake make install
+FROM emsdk-base AS zlib-builder
+ENV ZLIB_BRANCH=v1.2.11
+ADD https://github.com/ffmpegwasm/zlib.git#$ZLIB_BRANCH /src
+COPY build/zlib.sh /src/build.sh
+RUN bash -x /src/build.sh
 
 ############################################
-# Build FFmpeg (EXTREMELY MINIMAL)
+# Base ffmpeg
 ############################################
-FROM base AS ffmpeg-builder
-WORKDIR /src
+FROM emsdk-base AS ffmpeg-base
+ADD https://github.com/FFmpeg/FFmpeg.git#$FFMPEG_VERSION /src
+COPY --from=zlib-builder $INSTALL_DIR $INSTALL_DIR
 
-ADD https://github.com/FFmpeg/FFmpeg.git#${FFMPEG_VERSION} ffmpeg
-COPY --from=zlib-builder /opt /opt
+############################################
+# Build ffmpeg (TS → MP4 ONLY)
+############################################
+FROM ffmpeg-base AS ffmpeg-builder
+COPY build/ffmpeg.sh /src/build.sh
 
-ENV PKG_CONFIG_PATH=/opt/lib/pkgconfig
-ENV CFLAGS="-I/opt/include -O3"
-ENV LDFLAGS="-L/opt/lib"
-
-WORKDIR /src/ffmpeg
-
-RUN emconfigure ./configure \
-  --target-os=none \
-  --arch=x86_32 \
-  --enable-cross-compile \
-  --disable-asm \
+RUN bash -x /src/build.sh \
+  --disable-everything \
   --disable-programs \
   --disable-doc \
   --disable-debug \
   --disable-autodetect \
   --disable-network \
-  --disable-everything \
-  \
   --enable-zlib \
+  --enable-gpl \
   --enable-protocol=file,crypto \
-  \
   --enable-demuxer=concat,mpegts,hls,mov \
   --enable-muxer=mp4 \
-  \
   --enable-decoder=h264,aac \
   --enable-parser=h264,aac,mpegts \
-  \
   --enable-bsf=aac_adtstoasc \
-  \
-  --enable-small \
-  --enable-gpl
-
-RUN emmake make -j$(nproc)
+  --enable-small
 
 ############################################
-# Build ffmpeg.wasm core
+# Build ffmpeg.wasm
 ############################################
-FROM ffmpeg-builder AS wasm-builder
-WORKDIR /src
-
-# 只复制必要的绑定
+FROM ffmpeg-builder AS ffmpeg-wasm-builder
 COPY src/bind /src/src/bind
 COPY src/fftools /src/src/fftools
-COPY build/ffmpeg-wasm.sh /src/build.sh
+COPY build/ffmpeg-wasm.sh build.sh
 
 ENV FFMPEG_LIBS="-lz"
 
-RUN mkdir -p dist && \
-    bash /src/build.sh \
+RUN mkdir -p /src/dist && \
+    bash -x /src/build.sh \
       ${FFMPEG_LIBS} \
       -sALLOW_MEMORY_GROWTH=1 \
       -sINITIAL_MEMORY=64MB \
@@ -94,5 +70,5 @@ RUN mkdir -p dist && \
 ############################################
 # Export
 ############################################
-FROM scratch
-COPY --from=wasm-builder /src/dist /dist
+FROM scratch AS exportor
+COPY --from=ffmpeg-wasm-builder /src/dist /dist
