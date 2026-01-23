@@ -159,12 +159,13 @@ RUN bash -x /src/build.sh \
   --disable-network \
   --enable-zlib \
   --enable-gpl \
-  --enable-protocol=file,crypto \
-  --enable-demuxer=concat,mpegts,hls,mov \
-  --enable-muxer=mp4 \
-  --enable-decoder=h264,aac \
-  --enable-parser=h264,aac,mpegts \
-  --enable-bsf=aac_adtstoasc \
+  --enable-libmp3lame \
+  --enable-demuxer=mov \
+  --enable-muxer=mp3 \
+  --enable-decoder=aac,mp3 \
+  --enable-encoder=libmp3lame \
+  --enable-swresample \
+  --enable-protocol=file \
   --enable-small
 
 # Build ffmpeg.wasm
