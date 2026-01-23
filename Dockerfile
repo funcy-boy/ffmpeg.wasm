@@ -71,7 +71,7 @@ FROM emsdk-base AS ffmpeg-base
 RUN embuilder build sdl2 sdl2-mt
 ADD https://github.com/FFmpeg/FFmpeg.git#$FFMPEG_VERSION /src
 COPY --from=lame-builder $INSTALL_DIR $INSTALL_DIR
-
+COPY --from=zlib-builder $INSTALL_DIR $INSTALL_DIR
 
 # Build ffmpeg
 FROM ffmpeg-base AS ffmpeg-builder
