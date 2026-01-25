@@ -86,6 +86,9 @@ RUN bash -x /src/build.sh \
   --enable-zlib \
   --enable-gpl \
   --enable-libmp3lame \
+  --enable-avcodec \
+  --enable-avformat \
+  --enable-avutil \
   --enable-demuxer=mov \
   --enable-muxer=mp3 \
   --enable-decoder=aac,mp3 \
