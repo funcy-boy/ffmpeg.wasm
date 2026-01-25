@@ -95,6 +95,8 @@ RUN bash -x /src/build.sh \
   --enable-encoder=libmp3lame \
   --enable-swresample \
   --enable-protocol=file \
+  --enable-avfilter \
+  --enable-filter=anull
   --enable-small
 
 # Build ffmpeg.wasm
