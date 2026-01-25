@@ -59,19 +59,18 @@ COPY --from=libwebp-builder $INSTALL_DIR $INSTALL_DIR
 FROM ffmpeg-base AS ffmpeg-builder
 COPY build/ffmpeg.sh /src/build.sh
 RUN bash -x /src/build.sh \
-    --disable-everything
-    --enable-avformat \
-    --enable-avutil \
-    --enable-swresample \
-    --enable-avfilter \
-    --enable-filter=anull \
-    --enable-demuxer=mov \
-    --enable-muxer=mp3 \
-    --enable-decoder=aac,mp3 \
-    --enable-encoder=libmp3lame \
-    --enable-protocol=file \
-    --enable-zlib \
-    --enable-small
+  --disable-everything \
+  --enable-small \
+  --enable-protocol=file \
+  --enable-demuxer=mov \
+  --enable-decoder=aac,mp3 \
+  --enable-parser=aac,mpegaudio \
+  --enable-encoder=libmp3lame \
+  --enable-muxer=mp3 \
+  --enable-filter=aresample \
+  --enable-swresample \
+  --enable-libmp3lame \
+  --enable-zlib
 
 # Build ffmpeg.wasm
 FROM ffmpeg-builder AS ffmpeg-wasm-builder
@@ -81,11 +80,6 @@ COPY build/ffmpeg-wasm.sh build.sh
 # libraries to link
 ENV FFMPEG_LIBS \
     -lmp3lame \
-    -lswresample \
-    -lavcodec \
-    -lavformat \
-    -lavutil \
-    -lavfilter \
     -lz
 RUN mkdir -p /src/dist/umd && bash -x /src/build.sh \
       ${FFMPEG_LIBS} \
