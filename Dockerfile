@@ -28,12 +28,6 @@ ADD https://github.com/ffmpegwasm/lame.git#$LAME_BRANCH /src
 COPY build/lame.sh /src/build.sh
 RUN bash -x /src/build.sh
 
-# Build ogg
-FROM emsdk-base AS ogg-builder
-ENV OGG_BRANCH=v1.3.4
-ADD https://github.com/ffmpegwasm/Ogg.git#$OGG_BRANCH /src
-COPY build/ogg.sh /src/build.sh
-RUN bash -x /src/build.sh
 
 
 # Build zlib
@@ -43,27 +37,14 @@ ADD https://github.com/ffmpegwasm/zlib.git#$ZLIB_BRANCH /src
 COPY build/zlib.sh /src/build.sh
 RUN bash -x /src/build.sh
 
-
-# Build freetype2
-FROM emsdk-base AS freetype2-builder
-ENV FREETYPE2_BRANCH=VER-2-10-4
-ADD https://github.com/ffmpegwasm/freetype2.git#$FREETYPE2_BRANCH /src
-COPY build/freetype2.sh /src/build.sh
+# Build libwebp
+FROM emsdk-base AS libwebp-builder
+COPY --from=zlib-builder $INSTALL_DIR $INSTALL_DIR
+ENV LIBWEBP_BRANCH=v1.3.2
+ADD https://github.com/ffmpegwasm/libwebp.git#$LIBWEBP_BRANCH /src
+COPY build/libwebp.sh /src/build.sh
 RUN bash -x /src/build.sh
 
-# Build fribidi
-FROM emsdk-base AS fribidi-builder
-ENV FRIBIDI_BRANCH=v1.0.9
-ADD https://github.com/fribidi/fribidi.git#$FRIBIDI_BRANCH /src
-COPY build/fribidi.sh /src/build.sh
-RUN bash -x /src/build.sh
-
-# Build harfbuzz
-FROM emsdk-base AS harfbuzz-builder
-ENV HARFBUZZ_BRANCH=5.2.0
-ADD https://github.com/harfbuzz/harfbuzz.git#$HARFBUZZ_BRANCH /src
-COPY build/harfbuzz.sh /src/build.sh
-RUN bash -x /src/build.sh
 
 
 # Base ffmpeg image with dependencies and source code populated.
@@ -71,33 +52,27 @@ FROM emsdk-base AS ffmpeg-base
 RUN embuilder build sdl2 sdl2-mt
 ADD https://github.com/FFmpeg/FFmpeg.git#$FFMPEG_VERSION /src
 COPY --from=lame-builder $INSTALL_DIR $INSTALL_DIR
-COPY --from=zlib-builder $INSTALL_DIR $INSTALL_DIR
+COPY --from=libwebp-builder $INSTALL_DIR $INSTALL_DIR
+
 
 # Build ffmpeg
 FROM ffmpeg-base AS ffmpeg-builder
 COPY build/ffmpeg.sh /src/build.sh
 RUN bash -x /src/build.sh \
-  --disable-everything \
-  --disable-programs \
-  --disable-doc \
-  --disable-debug \
-  --disable-autodetect \
-  --disable-network \
-  --enable-zlib \
-  --enable-gpl \
-  --enable-libmp3lame \
-  --enable-avcodec \
-  --enable-avformat \
-  --enable-avutil \
-  --enable-demuxer=mov \
-  --enable-muxer=mp3 \
-  --enable-decoder=aac,mp3 \
-  --enable-encoder=libmp3lame \
-  --enable-swresample \
-  --enable-protocol=file \
-  --enable-avfilter \
-  --enable-filter=anull \
-  --enable-small
+    --disable-everything
+    --enable-avcodec \
+    --enable-avformat \
+    --enable-avutil \
+    --enable-swresample \
+    --enable-avfilter \
+    --enable-filter=anull \
+    --enable-demuxer=mov \
+    --enable-muxer=mp3 \
+    --enable-decoder=aac,mp3 \
+    --enable-encoder=libmp3lame \
+    --enable-protocol=file \
+    --enable-zlib \
+    --enable-small
 
 # Build ffmpeg.wasm
 FROM ffmpeg-builder AS ffmpeg-wasm-builder
@@ -106,13 +81,13 @@ COPY src/fftools /src/src/fftools
 COPY build/ffmpeg-wasm.sh build.sh
 # libraries to link
 ENV FFMPEG_LIBS \
-  -lmp3lame \
-  -lswresample \
-  -lavcodec \
-  -lavformat \
-  -lavutil \
-  -lz
-
+    -lmp3lame \
+    -lswresample \
+    -lavcodec \
+    -lavformat \
+    -lavutil \
+    -lavfilter \
+    -lz
 RUN mkdir -p /src/dist/umd && bash -x /src/build.sh \
       ${FFMPEG_LIBS} \
       -o dist/umd/ffmpeg-core.js
