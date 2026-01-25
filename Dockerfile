@@ -60,7 +60,6 @@ FROM ffmpeg-base AS ffmpeg-builder
 COPY build/ffmpeg.sh /src/build.sh
 RUN bash -x /src/build.sh \
     --disable-everything
-    --enable-avcodec \
     --enable-avformat \
     --enable-avutil \
     --enable-swresample \
