@@ -96,7 +96,7 @@ RUN bash -x /src/build.sh \
   --enable-swresample \
   --enable-protocol=file \
   --enable-avfilter \
-  --enable-filter=anull
+  --enable-filter=anull \
   --enable-small
 
 # Build ffmpeg.wasm
