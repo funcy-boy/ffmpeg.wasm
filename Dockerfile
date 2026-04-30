@@ -7,7 +7,6 @@ ARG EXTRA_LDFLAGS
 ARG FFMPEG_ST
 ARG FFMPEG_MT
 ENV INSTALL_DIR=/opt
-# We cannot upgrade to n6.0 as ffmpeg bin only supports multithread at the moment.
 ENV FFMPEG_VERSION=n5.1.4
 ENV CFLAGS="-I$INSTALL_DIR/include $CFLAGS $EXTRA_CFLAGS"
 ENV CXXFLAGS="$CFLAGS"
@@ -18,69 +17,35 @@ ENV PKG_CONFIG_PATH=$PKG_CONFIG_PATH:$EM_PKG_CONFIG_PATH
 ENV FFMPEG_ST=$FFMPEG_ST
 ENV FFMPEG_MT=$FFMPEG_MT
 RUN apt-get update && \
-      apt-get install -y pkg-config autoconf automake libtool ragel
+    apt-get install -y pkg-config autoconf automake libtool ragel
 
-
-# Build lame
-FROM emsdk-base AS lame-builder
-ENV LAME_BRANCH=master
-ADD https://github.com/ffmpegwasm/lame.git#$LAME_BRANCH /src
-COPY build/lame.sh /src/build.sh
+# Build x264 (needed for H.264 encoding)
+FROM emsdk-base AS x264-builder
+ENV X264_BRANCH=4-cores
+ADD https://github.com/ffmpegwasm/x264.git#$X264_BRANCH /src
+COPY build/x264.sh /src/build.sh
 RUN bash -x /src/build.sh
 
-
-
-# Build zlib
-FROM emsdk-base AS zlib-builder
-ENV ZLIB_BRANCH=v1.2.11
-ADD https://github.com/ffmpegwasm/zlib.git#$ZLIB_BRANCH /src
-COPY build/zlib.sh /src/build.sh
-RUN bash -x /src/build.sh
-
-# Build libwebp
-FROM emsdk-base AS libwebp-builder
-COPY --from=zlib-builder $INSTALL_DIR $INSTALL_DIR
-ENV LIBWEBP_BRANCH=v1.3.2
-ADD https://github.com/ffmpegwasm/libwebp.git#$LIBWEBP_BRANCH /src
-COPY build/libwebp.sh /src/build.sh
-RUN bash -x /src/build.sh
-
-
-
-# Base ffmpeg image with dependencies and source code populated.
+# Base ffmpeg image with source code and x264
 FROM emsdk-base AS ffmpeg-base
 RUN embuilder build sdl2 sdl2-mt
 ADD https://github.com/FFmpeg/FFmpeg.git#$FFMPEG_VERSION /src
-COPY --from=lame-builder $INSTALL_DIR $INSTALL_DIR
-COPY --from=libwebp-builder $INSTALL_DIR $INSTALL_DIR
+COPY --from=x264-builder $INSTALL_DIR $INSTALL_DIR
 
-
-# Build ffmpeg
+# Build ffmpeg with minimal features: only libx264, GPL, and common demuxers/muxers
 FROM ffmpeg-base AS ffmpeg-builder
 COPY build/ffmpeg.sh /src/build.sh
 RUN bash -x /src/build.sh \
-  --disable-everything \
-  --enable-small \
-  --enable-protocol=file \
-  --enable-demuxer=mov \
-  --enable-decoder=aac,mp3 \
-  --enable-parser=aac,mpegaudio \
-  --enable-encoder=libmp3lame \
-  --enable-muxer=mp3 \
-  --enable-filter=aresample \
-  --enable-swresample \
-  --enable-libmp3lame \
-  --enable-zlib
+      --enable-gpl \
+      --enable-libx264
 
 # Build ffmpeg.wasm
 FROM ffmpeg-builder AS ffmpeg-wasm-builder
 COPY src/bind /src/src/bind
 COPY src/fftools /src/src/fftools
 COPY build/ffmpeg-wasm.sh build.sh
-# libraries to link
-ENV FFMPEG_LIBS \
-    -lmp3lame \
-    -lz
+# Only link x264 (others removed)
+ENV FFMPEG_LIBS -lx264
 RUN mkdir -p /src/dist/umd && bash -x /src/build.sh \
       ${FFMPEG_LIBS} \
       -o dist/umd/ffmpeg-core.js
@@ -89,6 +54,6 @@ RUN mkdir -p /src/dist/esm && bash -x /src/build.sh \
       -sEXPORT_ES6 \
       -o dist/esm/ffmpeg-core.js
 
-# Export ffmpeg-core.wasm to dist/, use `docker buildx build -o . .` to get assets
+# Export ffmpeg-core.wasm to dist/
 FROM scratch AS exportor
 COPY --from=ffmpeg-wasm-builder /src/dist /dist
